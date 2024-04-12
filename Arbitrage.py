@@ -1,6 +1,25 @@
-import math
+def find_profitable_path(graph, start, visited, path, balance, max_balance, max_path):
+    visited.add(start)
+    path.append(start)
 
-# Define the liquidity dictionary
+    if len(path) > 1:
+        prev_token = path[-2]
+        profit = balance * graph[(prev_token, start)][1] / graph[(prev_token, start)][0]
+        balance -= profit
+
+    if balance > max_balance:
+        max_balance = balance
+        max_path = path.copy()
+
+    for neighbor in graph:
+        if neighbor[0] == start and neighbor[1] not in visited:
+            max_balance, max_path = find_profitable_path(graph, neighbor[1], visited, path, balance, max_balance, max_path)
+
+    visited.remove(start)
+    path.pop()
+
+    return max_balance, max_path
+
 liquidity = {
     ("tokenA", "tokenB"): (17, 10),
     ("tokenA", "tokenC"): (11, 7),
@@ -14,39 +33,16 @@ liquidity = {
     ("tokenD", "tokenE"): (60, 25),
 }
 
-def find_profitable_path(liquidity):
-    # Initialize variables to store the best path and balance
-    best_path = None
-    best_balance = -math.inf
+graph = liquidity.copy()
+for edge in liquidity:
+    reverse_edge = (edge[1], edge[0])
+    graph[reverse_edge] = (liquidity[edge][1], liquidity[edge][0])
 
-    # Iterate over all possible paths
-    for start, end in liquidity:
-        # Check if there is a reverse path
-        if (end, start) in liquidity:
-            # Calculate the profit ratio for the current path
-            ratio = liquidity[end, start][0] / liquidity[start, end][1]
-            
-            # Check if this path is profitable
-            if ratio > 1:
-                # Calculate the balance for tokenB
-                balance = liquidity[start, end][1] * ratio - liquidity[start, end][0]
-                
-                # Check if this balance is better than the current best balance
-                if balance > best_balance:
-                    best_balance = balance
-                    best_path = [start, end]
+start_token = "tokenB"
+visited = set()
+path = []
+balance = 1.0  # Starting balance
+max_balance, max_path = find_profitable_path(graph, start_token, visited, path, balance, 0, [])
 
-    return best_path, best_balance
+print("Path:", "->".join(max_path), ", Balance:", max_balance)
 
-def print_path(path, balance):
-    # Print the path in the specified format
-    if path:
-        print(f"path: {'->'.join(path)}, tokenB balance={balance:.6f}")
-    else:
-        print("No profitable path found.")
-
-# Find the profitable path and balance
-profitable_path, balance = find_profitable_path(liquidity)
-
-# Print the result
-print_path(profitable_path, balance)
