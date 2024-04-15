@@ -79,14 +79,9 @@ contract Arbitrage is Test {
         /**
          * Please add your solution below
          */
+        
+        
         /**
-        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
-            5 ether,
-            0,
-            getPathForTokenToToken(address(tokenB), address(tokenA)),
-            address(this),
-            block.timestamp
-        );
          * Please add your solution above
          */
         uint256 tokensAfter = tokenB.balanceOf(arbitrager);
