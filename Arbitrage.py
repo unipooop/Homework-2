@@ -1,25 +1,3 @@
-def find_profitable_path(graph, start, visited, path, balance, max_balance, max_path):
-    visited.add(start)
-    path.append(start)
-
-    if len(path) > 1:
-        prev_token = path[-2]
-        profit = balance * graph[(prev_token, start)][1] / graph[(prev_token, start)][0]
-        balance -= profit
-
-    if balance > max_balance:
-        max_balance = balance
-        max_path = path.copy()
-
-    for neighbor in graph:
-        if neighbor[0] == start and neighbor[1] not in visited:
-            max_balance, max_path = find_profitable_path(graph, neighbor[1], visited, path, balance, max_balance, max_path)
-
-    visited.remove(start)
-    path.pop()
-
-    return max_balance, max_path
-
 liquidity = {
     ("tokenA", "tokenB"): (17, 10),
     ("tokenA", "tokenC"): (11, 7),
@@ -32,17 +10,50 @@ liquidity = {
     ("tokenC", "tokenE"): (10, 8),
     ("tokenD", "tokenE"): (60, 25),
 }
+def execute_swap(liquidity, amount, token_in, token_out):
+    if (token_in, token_out) in liquidity:
+        reserve_in, reserve_out = liquidity[(token_in, token_out)]
+    else:
+        reserve_out, reserve_in = liquidity[(token_out, token_in)]
 
-graph = liquidity.copy()
-for edge in liquidity:
-    reverse_edge = (edge[1], edge[0])
-    graph[reverse_edge] = (liquidity[edge][1], liquidity[edge][0])
+    product_reserves = reserve_in * reserve_out
+    new_reserve_in = reserve_in + amount
+    new_reserve_out = product_reserves / new_reserve_in
+    output_amount = reserve_out - new_reserve_out
 
-start_token = "tokenB"
-visited = set()
-path = []
-balance = 1.0  # Starting balance
-max_balance, max_path = find_profitable_path(graph, start_token, visited, path, balance, 0, [])
+    if (token_in, token_out) in liquidity:
+        liquidity[(token_in, token_out)] = [new_reserve_in, new_reserve_out]
+    else:
+        liquidity[(token_out, token_in)] = [new_reserve_out, new_reserve_in]
+    
+    return output_amount
 
-print("Path:", "->".join(max_path), ", Balance:", max_balance)
+def find_optimal_sequence(liquidity, initial_amount, current_token, target_amount, target_token, sequence, depth, max_depth):
+    if depth > max_depth:
+        return None, []
 
+    possible_swaps = [key for key in liquidity.keys() if current_token in key]
+    results = []
+    for swap in possible_swaps:
+        other_token = swap[0] if swap[1] == current_token else swap[1]
+        updated_liquidity = liquidity.copy()
+        swapped_amount = execute_swap(updated_liquidity, initial_amount, current_token, other_token)
+        if other_token == target_token and round(swapped_amount) == target_amount:
+            return swapped_amount, sequence + [(current_token, other_token)]
+        elif other_token != target_token:
+            result_amount, result_sequence = find_optimal_sequence(updated_liquidity, swapped_amount, other_token, target_amount, target_token, sequence + [(current_token, other_token)], depth + 1, max_depth)
+            if result_amount is not None:
+                results.append((result_amount, result_sequence))
+    if results:
+        results.sort(key=lambda x: abs(target_amount - x[0]))
+        return results[0]
+    return None, []
+
+max_search_depth = 7
+
+start_token = 'tokenB'
+final_amount, best_path = find_optimal_sequence(liquidity, 5, start_token, 21, start_token, [], 0, max_search_depth)
+print("Optimal path from tokenB:", end='')
+for pair in best_path:
+    print('->'+pair[1], end='')
+print(", tokenB balance after trade:", final_amount, '.')
